@@ -1,1 +1,5 @@
-# APT-python4hpc
+# Python for HPC
+
+
+
+* [Lectures](lectures/)
