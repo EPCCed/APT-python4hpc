@@ -7,6 +7,6 @@
 
 - Clone this repository on Cirrus: `git clone https://github.com/EPCCed/APT-python4hpc.git`
 - `module load anaconda gcc/8.2.0`
-- Follow the practical instructions in the browser, starting with [README.ipynb](README.ipynb)
+- Follow the practical instructions in the browser, starting with [https://github.com/EPCCed/APT-python4hpc.git](README.ipynb)
 - To view `flow.png` files, use the `display` command
 
