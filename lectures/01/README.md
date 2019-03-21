@@ -624,7 +624,7 @@ print(a_out)
 - Numba adds JIT capability to the Python interpreter by leveraging LLVM
 
 - PyPy is a JIT Python compiler created entirely separately from the standard Python interpreter
- - Aims to implement all of Python, but not complete nor compatible with all packages including not all of NumPy
+ - Aims to support all core Python, NumPy, and a few other packages but in practice can't guarantee completeness / compatibility
 
 ---
 
