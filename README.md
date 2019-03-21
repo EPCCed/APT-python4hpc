@@ -3,3 +3,4 @@
 
 
 * [Lectures](lectures/)
+* [Exercises](exercises/)

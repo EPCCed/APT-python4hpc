@@ -1,0 +1,1 @@
+This version of the CFD example includes vorticity, which means more compute per Jacobi iteration
