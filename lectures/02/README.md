@@ -203,7 +203,7 @@ fib.fib(200)
 
 # Cython - an example
 
-See https://github.com/epcced/APT-python4hpc/lectures/02/cython/
+Fibonacci example gives the following performance results:
 
  Implementation                                | Runtime | Speedup
 -----------------------------------------------|---------|---------
