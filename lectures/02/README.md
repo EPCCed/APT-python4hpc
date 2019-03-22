@@ -160,19 +160,19 @@ def fib(n):
         a, b = a + b, a
     return a
 ```
-Could compile using Cython, but haven't defined C types so no optimisations
+Could compile using Cython, but haven't defined C types so may not be faster
 
 Can use Cython syntax to declare static C types, save this as `fib.pyx`:
 
 ```Cython
 # Returns the nth Fibonacci number
 def fib(int n):
-cdef int i
-    cdef double a = 0.0
-    cdef double b = 1.0
-    for i in range(n):
-        a, b = a + b, a
-    return a
+  cdef int i
+  cdef double a = 0.0
+  cdef double b = 1.0
+  for i in range(n):
+    a, b = a + b, a
+  return a
 ```
 
 ---
@@ -198,9 +198,20 @@ import fib
 fib.fib(200)
 
 ```
-- 5-10 `x` faster than original Python implementation 
 
-- `fib.c` is ~3000 lines long!
+---
+
+# Cython - an example
+
+See https://github.com/epcced/APT-python4hpc/lectures/02/cython/
+
+ Implementation                                | Runtime | Speedup
+-----------------------------------------------|---------|---------
+ Pure Python                                   | 9.21 µs |    1 `x`
+ Cythonized Pure Python (no static C-types)    | 1.38 µs |    7 `x`
+ Cythonized Cython                             |  245 ns |   37 `x`
+
+- Note: C files are 2500 - 3000 lines long!
 
 ---
 
