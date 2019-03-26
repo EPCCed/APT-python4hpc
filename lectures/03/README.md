@@ -16,7 +16,7 @@ template: titleslide
   - multiprocessing
   - mpi4py
 
-- Python for HPC: challenges & 2018 Gordon Bell Prize
+- Python for HPC
 
 
 ##### * parts adapted with permission from http://doi.org/10.5281/zenodo.1409686
