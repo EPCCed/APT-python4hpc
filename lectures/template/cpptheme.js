@@ -7,6 +7,6 @@ cpptheme = new Theme(
 	    return '.thumb[\n.thumbtxt[\n' + this +'\n]\n]';
 	},
 	footer: function() {
-	    return epcc.footer() + "<p> CC-BY </p>;
+	    return epcc.footer() + "<p> CC-BY </p>";
 	}
     });
