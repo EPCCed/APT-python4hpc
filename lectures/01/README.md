@@ -319,7 +319,7 @@ nd = numpy.arange(100).reshape((10,10))
 136 ns ± 3.78 ns per loop (mean ± std. dev. of 7 runs, 10000000 loops each)
 ```
 
-The second case is more inefficient as in the first case a new temporary array is created after the first index, and is subsequently indexed by `4`
+The second case is more efficient as in the first case a new temporary array is created after the first index, and is subsequently indexed by `4`
 
 ---
 
