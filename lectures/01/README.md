@@ -9,44 +9,15 @@ template: titleslide
 # Python for HPC
 
 These 3 lectures will cover:
-- Brief overview of Python characteristics
-
 - The role of Python in HPC
- - Usage, benefits, limitations
 
-- Performance programming with Python
- - Obtaining good performance for numerical computing
+- How Python works "under the hood"
+
+- When and why Python is slow (compared to compiled C/C++/Fortran)
+
+- Strategies for fast numerical computing with Python 
 
 - Parallel computing with Python
-
----
-
-# Python characteristics - brief overview
-
-- Python code - script or interactive commands  - usually executed by the standard Python interpreter (CPython implementation)
-
-- Interpreter converts Python code to intermediate bytecode, which is executed by the Python virtual machine
-
-- *Easy to use and flexible*:
- - dynamic variable typing
- - automatic memory management
- - imperative, functional, object-oriented & procedural programming
- - wide range of add-on scientific/numerical packages available
- 
----
-
-# Python characteristics - consequences
-
-However...
-
-- Normally no ahead-of-time compilation to machine code prior to execution
- - No opportunity for many of the performance optimisations that exist for compiled languages like C, C++, Fortran
-
-- Dynamic typing prevents optimisations possible when type is known in advance, and requires continuous type checking at runtime
-
-- Normally also no just-in-time (JIT) compilation
-
-It is no surprise that Python's characteristics predispose it to lower performance than traditional HPC languages
 
 ---
 
@@ -58,7 +29,21 @@ template: titleslide
 name:questionpython
 # Python for HPC?
 
-Python is everywhere... how about in HPC?
+
+Python is popular...
+ - Easy to use and flexible (concise and minimal syntax )
+ - Dynamic variable typing
+ - Automatic memory management
+ - Allows imperative, functional, object-oriented & procedural programming
+ - Wide range of third-party scientific/numerical packages available
+
+...but how about in HPC?
+
+
+---
+
+name:questionpython
+# Python for HPC?
 
 Programming language usage on ARCHER (January 2018 - March 2019)**\***:
 
@@ -69,6 +54,7 @@ Programming language usage on ARCHER (January 2018 - March 2019)**\***:
 So Python not really used to run parallel workloads in an HPC context...
 
 ---
+
 template: questionpython
 ...*or is it?*
 
@@ -104,9 +90,8 @@ But is this massively-parallel computing with Python?
  - visualisation
 
 This is typical for usage of Python in HPC:
-- Acts as an easy-to-use bridge / glue code tying everything together
-- Calls out to other code for fast execution of performance-critical kernels
-- Convenient for general-purpose computing as well as large variety of numerical and data-oriented functionalities available as packages
+- Acts as convenient "glue" tying different stages of workflow together
+- Calls non-Python code for fast execution of performance-critical kernels
 
 ---
 
@@ -124,40 +109,182 @@ Is it worth trying to understand Python performance programming? (Yes!)
 
 ---
 
+
 template: titleslide
-# Python performance programming for numerical computing
+# How Python works
+
 
 ---
 
-# Introducing NumPy
+name:howpythonworks
+# How Python works
 
-- NumPy ("Numeric Python") supports:
- - Multidimensional arrays
- - Matrices and linear algebra operations
- - Random number generation
- - Fourier transforms
- - Polynomials
- - Tools for integrating with Fortran/C (more about this later)
- - NumPy provides fast precompiled functions for numerical routines
+To understand performance, first understand how Python works:
+
+Python code executed by a Python interpreter 
+ - Typically **CPython** ("`python`") - Python reference implementation
+
+The interpreter acts as:
+ - *Parser*: turns Python code into abstract syntax tree (*AST*) representation
+ 
+ - *Compiler*: produces bytecode (instructions &  data) from the *AST* 
+   - like compiled language object files, but not directly executable by CPU
+ 
+ - *Virtual machine*: executes bytecode on the underlying hardware
+
+.center[![:scale_img 100%](parse-compile-execute.svg)]
+
+---
+
+# Example
+Source code:
+```Python
+x = a + b
+```
+
+Abstract syntax tree:
+```Python
+>>> import ast
+>>> myAST = ast.parse("x = a + b")
+>>> ast.dump(myAST)
+Module(
+    body=[
+        Assign(
+            targets=[Name(id='x', ctx=Store())],
+            value=BinOp(
+                left=Name(id='a', ctx=Load()),
+                op=Add(),
+                right=Name(id='b', ctx=Load())))])
+ 
+```
+
+---
+
+# Example
+
+Bytecode:
+```Python
+>>> myBytecode = compile(myAST, "errorFilename", mode='exec')
+>>> myBytecode.co_code
+ b'e\x00e\x01\x17\x00Z\x02d\x00S\x00'
+>>> import dis
+>>> dis.dis(myBytecode)
+  1           0 LOAD_NAME                0 (a)
+              2 LOAD_NAME                1 (b)
+              4 BINARY_ADD
+              6 STORE_NAME               2 (x)
+              8 LOAD_CONST               0 (None)
+             10 RETURN_VALUE
+
+```
+Execution:
+```Python
+>>> a,b = 2,3
+>>> exec(myBytecode)
+>>> x
+5
+
+```
+
+---
+
+# The Python virtual machine / interpreter
+
+- CPython implements a Python virtual machine in C
+  - Python built-in object types (ints, doubles, Lists) all implemented in C
+
+- Execution of bytecode instructions by interpreter starts in giant `switch` statement: 
+  - https://github.com/python/cpython/blob/master/Python/ceval.c
+
+- Stack-based execution: function calls and operations are pushed/popped on stacks
+
+
+---
+
+template:titleslide
+# Python performance
+
+---
+
+# Python performance
+
+Execution time on give hardware depends on:
+- number of bytecode instructions
+- computational cost of these instructions
+
+Some general guidelines on writing fast Python code:
+- Function calls costly in CPython stack execution model
+- Loops and conditional blocks have high entry & exit overheads
+- Local-scope names are faster to access than global-scope
+  - Aliasing frequently accessed global names with a local-scope variable, e.g. inside a loop, can speed up your code
+
+---
+
+# Compiler optimisations
+
+CPython parser/AST builder and bytecode compiler perform some basic optimisations:
+
+- Bytecode is saved in file (`*.pyc` or in `__pycache` directory) for reuse
+
+- "Peephole" optimiser
+  - Constant unfolding (precompute constant arithmetic operations at compile time)
+  - Dead code elimination (avoid unnecessary execution)
+  - Some removal/optimisation of useless/conditional jumps
+  - Simplification of conditionals
+
+Very limited compared to Fortran/C/C++ compilers
+ - Dynamic typing prevents many optimisations possible when type is known in advance
+
+Intentional: code should execute straight away, don't want to spend time optimising
+
+---
+
+# Python performance
+
+- Fundamentally, running bytecode instructions through the Python interpreter is slower
+than executing compiled, statically-typed Fortran/C/C++ code
+
+- For performance, should always look if desired functionality is available in standard Python library modules or external packages
+  - Functions implemented in C instead of in Python will be *much* faster
+
+
+---
+
+# Numerical computing
+
+In numerical computing, often care about performance of (nested) for loops reading/writing to/from arrays of floats/doubles
+- Often performing the same operation on all elements (individually, pairwise, or across >2 arrays)
+- Explicit `for` loops in Python have very significant overhead:
+  - type checking done for each element (even though all elements of an array of same type)
+  - array operations are *not* vectorised by the compiler/interpreter
+
+Data structures: standard Python Library provides lists and 1d arrays (type `array.array`)
+ - Lists are general containers for objects
+ - `array.array` is 1D list-like container for objects of the same type
+ - Limited functionality
+ - Significant memory and performance overhead associated with these structures - ** do not use these arrays for numerical computing **
+
+
+---
+
+# NumPy
+
+For numerical computing, use (at least) the Numpy package
+
+NumPy ("Numeric Python") provides:
+  - Statically typed, fixed-size multidimensional arrays (matrices) - type `numpy.ndarray`
+    - Like C arrays wrapped in Python objects
+  - Linear algebra operations, random number generation
+  - Fourier transforms, polynomials
+  - Tools for integrating with Fortran/C (more about this later)
+  - Fast precompiled functions for numerical routines
+  - Efficient storage (contiguously in memory) and execution
 
 https://docs.scipy.org/doc/numpy/user/whatisnumpy.html
 
----
-
-# Python performance programming
-
-- Standard Python Library provides lists and 1d arrays (type array.array)
- - Lists are general containers for objects
- - Arrays are 1D containers for objects of the same type
- - Limited functionality
- - Some memory and performance overhead associated with these structures - ** do not use these arrays for numerical computing **
-
-- NumPy provides general-dimensional arrays (type numpy.ndarray)
- - Can store many elements of the same data type in multiple dimensions
- - Like C arrays wrapped in Python objects
- - More functionality than core Python e.g. many convenient methods for array manipulation
- - Efficient storage (contiguously in memory) and execution
-
+Numpy can perform vectorised operations on all elements of arrays *with a single function call*
+  - Drastically reduces overheads compared to running everything through the Python VM
+    - Unless you force Python to be slow by writing explicit `for` loops
 
 ---
 
@@ -176,7 +303,7 @@ By default, `%timeit` repeats calling the timeit function 3 times and outputs th
 
 ---
 
-# NumPy array performance
+# NumPy array access syntax & performance
 
 Array access syntax matters for performance:
 
@@ -583,53 +710,9 @@ C foreign function interface (CFFI) is standard library module
 
 ---
 
-# Just-in-time compilation using Numba
+# Next
 
-- Numba uses a slightly different approach: just-in-time compilation (JIT)
+- Tomorrow's lecture will discuss Cython, PyPy and Numba
 
-- When a Numba function is called for the first time, function is compiled into machine code using LLVM (for the given argument types) and stored
+- Wednesday's practical will give you a chance to experiment improving Python performance using approaches discussed today and tomorrow
 
-- Subsequent calls with the same argument types use the machine code and are therefore very fast
-
-- Inbuilt version of LLVM so no calls to external compiler/loading libraries
-
----
-
-# Numba
-
-Use `@jit` decorator to indicate functions for compilation:
-- `@jit (nopython = True)`
-
-```Python
-import numpy as np
-from numba import jit
-
-@jit (nopython = True)
-def array_sqrt(n, ain, aout):
-    for i in range(n):
-        aout[i] = np.sqrt(ain[i])
-
-a_in  = np.array([4.0, 9.0, 16.0, 25.0], np.double)
-a_out = np.zeros(4, np.double)
-
-array_sqrt(a_in.size, a_in, a_out)
-print(a_out)
-```
-`[2. 3. 4. 5.]`
-
----
-
-# PyPy
-
-- Numba adds JIT capability to the Python interpreter by leveraging LLVM
-
-- PyPy is a JIT Python compiler created entirely separately from the standard Python interpreter
- - Aims to support all core Python, NumPy, and a few other packages but in practice can't guarantee completeness / compatibility
-
----
-
-# Practical
-
-- The first practical will give you a chance to experiment improving Python performance using approaches discussed today
-
-- Next lecture will discuss Cython and start to look at parallel computing with Python
