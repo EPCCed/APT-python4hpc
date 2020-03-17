@@ -4,10 +4,12 @@
 This example shows how to use Cython and what performance gains can be had
 
 `fib.py` - the original pure Python code
+
 `fib_python.pyx` - the same original pure Python code (no static C-type declarations), saved as `.pyx` ready to cythonize into C and then compile into a shared library
+
 `fib_cython.pyx` - Cython version of the code (Python plus static C-type declarations), saved as `.pyx` ready to cythonize into C and then compile into a shared library
 
-To create the shared libraries, run the following commands:
+To create the shared libraries, run the following commands with a `python` install that includes cython (e.g. Anaconda Python):
 
 `python setup_python.py build_ext --inplace`
 
