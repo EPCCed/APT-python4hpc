@@ -1,60 +1,3 @@
-
-template: titleslide
-
-# CFD Practical Summary
-
-
----
-
-# CFD Practical Summary
-
-Performance results on Cirrus for ./cfd 10 1000: 
-
-Implementation             |   Runtime  | Speedup
----------------------------|------------|---------
-ndarrays (loops)           |    103s    |   1 `x`
-lists (loops)              |    46s     |   2 `x`
-ndarrays (slicing) & numba |    2.23s   |  46 `x`
-scipy convolve             |    1.46s   |  70 `x`
-C -O0 (ctypes)             |    1.24s   |  80 `x`
-ndarrays (slicing)         |    0.72s   |  140 `x`
-Fortran -O3 (f2py)         |    0.26s   |  400 `x`
-C -O3 (ctypes)             |    0.19s   |  540 `x`
-
-- Runs performed using:
- - Python 3.6.4
- - Numpy 1.14.0
- - SciPy 1.0.0
- - gcc 8.2.0
-
----
-
-# CFD Practical Conclusions
-
-- Avoid explicit `for` loops
- - use slicing-based Numpy array indexing instead
-
-- Numba doesn't always help, and places some limitations on supported Numpy features
-
-- Interfacing with compiled and optimised C/Fortran code can yield significant speedups
-
----
-
-
-# A note on .pyc files and performance
-
-- `.pyc` files = bytecode saved to disk, ready to be executed by the Python VM
-
-- Interpreter automatically creates these for `.py` files imported by a script
-
-- If `file.pyc` is newer than `file.py`, Python VM executes the `pyc` directly
- - saves time performing an unnecessary translation step
-
-- Can bias multiple-run performance tests unless removed inbetween runs
- - located in same dir as imported `py` file, or in `__pycache`__ subdir
-
----
-
 template: titleslide
 
 # Introduction to Performance Programming with Python
@@ -62,13 +5,275 @@ template: titleslide
 
 ---
 
-# Numba (reminder)
+# ...where were we?
+
+Looked at how Python code is executed by the default interpreter and what that tells us about performance. For fast numerical computing, want to:
+- Minimise overheads from dynamic typing & stack-based execution
+- Exploit vectorisation
+
+How?
+- Use NumPy arrays (statically typed, fixed size)
+  - mind efficient syntax to avoid creating temporaries
+- Call precompiled functions
+  - For elementwise operations on NumPy arrays *don't write explicit for loops*, use overloaded operators (`+`, `-`, `*`, `/`, `**`) and related [`ufuncs`](https://numpy.org/devdocs/reference/ufuncs.html) ("universal functions"), many compiled from C
+  - Interface Python with compiled Fortran/C/C++ code by importing functions from shared library (many options, looked at `ctypes`)
+
+
+---
+
+# What's next?
+
+Going to cover 4 other strategies for speeding up Python performance:
+
+- **CPython extension modules**: extend CPython interpreter with C code
+
+- **Cython**: make existing Python code fast...by making it more like C
+
+- **PyPy**: alternative Python interpreter (`pypy` instead of CPython's `python`)
+  - speed from just-in-time (JIT) compilation  
+
+- **Numba**: 
+  - JIT compilation using LLVM
+
+---
+
+template:titleslide
+# CPython extension modules
+
+---
+
+# CPython extension modules
+
+- CPython provides a C API (`#include "Python.h"`), allows you to:
+  - Write C code that directly integrates with rest of CPython
+  - Operate on built\-in objects (possibly avoid Python stack execution)
+  - Rebuild interpreter with extension module to make importable
+
+- Typical usage:
+ - accelerator module: self-contained C code, for speed
+ - wrapper module: interface with other C code (libraries)
+ - low-level system access: interface with OS, hardware, ...
+  
+- NumPy extension modules:
+ - accelerator modules: e.g. inner loops moved to C
+ - wrapper modules: e.g. call Fortran/C linear algebra libraries
+ - low-level: e.g. vectorise operations, control memory layout of arrays
+
+---
+
+# CPython extension modules
+
+- Advantage: extremely flexible
+
+- Disadvantages:
+    - Requires thorough understanding of CPython and its Python/C API
+        - Significant initial development effort
+        - Difficult to maintain
+
+    - Requires rebuild of interpreter
+        - Barrier to usage and cross-platform portability
+        - Not feasible in some situations
+
+- Cython (next) partly automates creation of CPython extension modules
+    - Does not require intimate knowledge of CPython
+    - Eliminates need for interpreter rebuild
+
+---
+
+template:titleslide
+# Cython
+
+---
+
+# Cython
+
+- Enrich performance-critical Python code with additional syntax
+ - Cython = Python + static declarations of C types + calls to C functions
+
+- Cython compiler converts Cython code to C code that calls CPython's C API
+    - Effectively creates a CPython extension module for you
+    - Automatically generates Python wrappers and Python/C API calls 
+        - Unlike manual Python-C interfacing using e.g. `ctypes`!
+        - Cython code can manipulate both Python and C variables, conversions occur automatically wherever possible
+
+- Resulting C code is compiled into a shared library for import in Python
+    - Using conventional C compiler, e.g. `gcc`
+    - Benefits from all the usual static typing-based ahead-of-time (AOT) compilation optimisations
+
+---
+
+# Cython example
+
+Pure Python (**`fib.py`**)
+
+```Python
+# Returns the nth Fibonacci number
+def fib(n):
+    a = 0.0
+    b = 1.0
+    for i in range(n):
+        a, b = a + b, a
+    return a
+```
+Could already Cython-compile, but haven't defined C types so may not be faster. Can use Cython syntax to declare static C types (save as **`fib.pyx`**):
+
+```Cython
+# Returns the nth Fibonacci number
+def fib(int n):
+  cdef int i
+  cdef double a = 0.0
+  cdef double b = 1.0
+  for i in range(n):
+    a, b = a + b, a
+  return a
+```
+
+---
+
+# Cython example
+
+To use, need to create `setup.py` file:
+```Python
+from distutils.core import setup
+from Cython.Build import cythonize
+
+setup(
+    ext_modules=cythonize("fib.pyx"),
+)
+```
+Build C extension module (`fib.c` and `fib.cpython.so`) from the shell:
+```
+> python setup.py build_ext --inplace
+```
+To use `fib` function from `fib.cpython.so` in a Python script, just do:
+```Python
+import fib
+fib.fib(200)
+
+```
+
+---
+
+# Cython example
+
+Fibonacci example gives the following performance results:
+
+ Implementation                                | Runtime | Speedup
+-----------------------------------------------|---------|---------
+ Pure Python                                   | 9.21 µs |    1 `x`
+ Cythonized Pure Python (no static C-types)    | 1.38 µs |    7 `x`
+ Cythonized Cython                             |  245 ns |   37 `x`
+
+- Note: C files are 2500 - 3000 lines long!
+
+
+
+
+---
+
+
+# Cython
+
+
+Advantages:
+- Automates much of CPython extension module creation
+
+- Allows incremental development and focused optimisation of hotspots
+
+- Automatically performs runtime checks, e.g. out-of-bounds array access
+
+- Allows creation of wrapper modules to interface Python with C-based high-performance numerical libraries 
+    - similar approach as example:
+        - `cdef` and type-define function
+        - link appropriately during build of shared library
+
+- Can also be used to call into Python code from C
+  
+---
+
+# Cython
+
+Limitations / things to consider:
+
+- Little/no speedup for conventional (non-C-translatable) Python code and Python native data structures (lists, tuples, dicts)
+
+- For Cython code to be fast it should avoid frequent calls to Python functions or access of pure-Python data structures
+  - Cythonize process can report which parts of Cython code do this to target optimisation
+
+- Explicit type annotation cumbersome
+
+- Often requires restructuring code
+
+- Code build becomes more complicated, more difficult to maintain
+
+
+---
+
+template:titleslide
+# PyPy
+
+---
+
+# PyPy
+
+- Alternative Python interpreter (i.e. not CPython)
+    - bytecode compiler
+    - bytecode evaluator interprets & executes bytecode (similar to CPython's virtual machine)
+
+- Uses just-in-time (JIT) compilation
+    - Code executation starts straightaway (like CPython)
+    - During execution PyPy traces which operations within the bytecode evaluator most contribute to execution time (hotspot detection)
+    - Attempts various optimisations on traced operations (even before generating machine code)
+        - Constant folding, boolean & arithmetic simplifications
+        - Vectorisation
+        - Loop unrolling
+    - Generates machine code for remaining costly operations
+
+---
+
+# PyPy
+
+Advantages:
+- Code still starts straightaway, no initial compilation cost 
+- Easy to use - no changes to existing Python code needed
+    - just execute with `pypy` instead of with `python`
+
+Disadvantages:
+- Only implements core Python functionality
+    - e.g. does not support integration with all of NumPy
+    - Not compatible with the majority of packages in the Python ecosystem
+
+
+---
+
+template:titleslide
+# Numba
+
+---
+
+# Numba 
+
+- JIT-compiler that uses LLVM toolchain
 
 - Numba lets us select certain functions to be just-in-time (JIT) compiled
 
 - When a Numba function is called for the first time, it is compiled into machine code using LLVM (for given argument types) and stored
 
 - Subsequent calls with same argument types execute the machine code
+
+- Uses built-in version of LLVM, so no calls to external compiler/loading libraries
+
+---
+
+# Numba overview
+
+.center[![:scale_img 90%](numba_flowchart.png)]
+
+[source](https://github.com/ContinuumIO/gtc2017-numba)
+
+---
+
+# Numba example
 
 ```Python
 import numpy as np
@@ -87,13 +292,6 @@ print(a_out)
 ```
 `[2. 3. 4. 5.]`
 
----
-
-# Numba overview
-
-.center[![:scale_img 90%](numba_flowchart.png)]
-
-[source](https://github.com/ContinuumIO/gtc2017-numba)
 
 ---
 
@@ -112,175 +310,51 @@ print(a_out)
 
 ---
 
+# Numba performance
+
+ ### Tip: don't 'unvectorise' fast NumPy code!
+
+Numba works well to speed up nonvectorised NumPy code that explicitly iterates over many items
+
+- Does not mean we should rewrite existing vectorised NumPy code to use explicit for loops (slow!) in order for Numba to have a strong effect
+  - Any speed up gain from Numba is likely to be cancelled out by removal of vectorised code
+
+---
+
+# Numba performance
+
+Numba works best when:
+
+- The function is called many times during normal execution
+ - Compilation is slow, so if the function is not called often, savings in execution time are unlikely to compensate for compilation time
+ 
+- Compute time is primarily due to NumPy array element memory access or numerical operations more complex than a single NumPy function call.
+
+- Function execution time is larger than the Numba dispatcher overhead.
+ - Functions that execute in much less than a microsecond are not going to see a major improvement, as the wrapper code which transitions from the Python interpreter to Numba-compiled machine code takes longer than a pure Python function call
+
+
+
+---
+
 # PyPy vs Numba
 
 - Numba and PyPy both provide JIT optimising compilation functionality for Python code
  - Numba works *with* the standard Python interpreter, i.e. CPython
  - PyPy is a separate standalone Python compiler implementation
 
-- PyPy usage:
- - `pypy myScript.py`
-
-- PyPy can offer considerable speedup, but several issues hamper uptake:
-  - only implements core Python functionality
-  - does not support integration with all of NumPy
-  - not compatible with the majority of packages in the Python ecosystem
-
 - Numba also does not support usage of every single Numpy feature, but code will still run as normal
 
 ---
 
-# Cython
+# Next
 
-- Extension of the Python language
- - Essentially Python + declaration of static C data types
+- Tomorrow's practical gives you hands on experience speeding up Python code (computational fluid dynamics mini-app) using various strategies covered so far
 
-- Cython compiler converts Cython code into C code
+- Next week's lecture covers parallel computing with Python
+  - Will see why multithreading in Python is problematic due to the Global Interpreter Lock (GIL) 
 
-- Resulting C code is compiled (`gcc`) into a shared library available to import into Python
-
-- Static typing and ahead-of-time (AOT) compilation provide improved performance similar to compiled C code
-
-- Automatically generates Python wrappers and Python/C API calls 
- - Unlike `ctypes`-based interfacing of Python with C!
- - Code can manipulate both Python and C variables, conversions occur automatically wherever possible
-
----
-
-# Cython - an example
-
-Pure Python (`fib.py`)
-
-```Python
-# Returns the nth Fibonacci number
-def fib(n):
-    a = 0.0
-    b = 1.0
-    for i in range(n):
-        a, b = a + b, a
-    return a
-```
-Could compile using Cython, but haven't defined C types so may not be faster
-
-Can use Cython syntax to declare static C types, save this as `fib.pyx`:
-
-```Cython
-# Returns the nth Fibonacci number
-def fib(int n):
-  cdef int i
-  cdef double a = 0.0
-  cdef double b = 1.0
-  for i in range(n):
-    a, b = a + b, a
-  return a
-```
-
----
-
-# Cython - an example
-
-To use, need to create `setup.py` file:
-```Python
-from distutils.core import setup
-from Cython.Build import cythonize
-
-setup(
-    ext_modules=cythonize("fib.pyx"),
-)
-```
-Then build the C extension module (`fib.c` and `fib.cpython.so`) with command:
-```
-$ python setup.py build_ext --inplace
-```
-To use fib.cpython.so in a Python script, just do:
-```Python
-import fib
-fib.fib(200)
-
-```
-
----
-
-# Cython - an example
-
-Fibonacci example gives the following performance results:
-
- Implementation                                | Runtime | Speedup
------------------------------------------------|---------|---------
- Pure Python                                   | 9.21 µs |    1 `x`
- Cythonized Pure Python (no static C-types)    | 1.38 µs |    7 `x`
- Cythonized Cython                             |  245 ns |   37 `x`
-
-- Note: C files are 2500 - 3000 lines long!
-
----
-
-# Cython
-
-Advantages:
- - Cython code can call C-based numerical libraries without passing through Python/C API bottleneck
-   - e.g. fast access to Numpy arrays using standard Python/Numpy syntax
-
-- Automatically performs runtime checks, e.g. out-of-bounds array access
-
-- Can manually manage memory of C structures if desired through `malloc/free` (Python objects garbage collected as normal)
-
-- Allows incremental development and focused optimisation of hotspots
-  - Not useful if you want to call out to C code that already exists - use interfacing approaches for that!
-  
----
-
-# Cython
-
-Limitations / things to consider:
-
-- Little/no speedup for conventional (non-C-translatable) Python code and Python native data structures (lists, tuples, dicts)
-
-- Like with Numba, for Cython code to be fast it should avoid calling Python API or accessing Python-native data structures
-  - Cythonize process can report which parts of Cython code have interactions with Python API, to target optimisation
-
----
-
-template: titleslide
-# Parallel Computing with Python?
-
----
-
-# Threading and the Global Interpreter Lock
-
-- A Python interpreter process can spawn threads (`import threading`, etc.)
- - implemented as OS-managed threads (pthreads in Linux)
-
-Global Interpreter Lock (GIL) is a core part of the CPython interpreter and prevents parallel execution of threads
-
-GIL consist of a **mutex lock** on threads - only one thread can execute bytecode in the interpreter at any time
- 
-Mutex lock acquisition and release implementation means multiple CPU-bound threads (typical for numerical computing) waste vast amounts of time 'battling' to obtain the GIL (massive contention)
- - Details: https://www.dabeaz.com/python/UnderstandingGIL.pdf
-
-GIL is released for calls to e.g. C code, e.g. many Numpy functions, so can be less of an issue for numerical computing
- - Still problematic because numerical codes may intermingle CPU-bound Python with external calls
-
----
-
-# Why the GIL?
-
-- Created to ensure thread safety for Python garbage collection (avoiding race condition on reference counter)
-
-- Also useful historically to allow calling out to C libraries that are not guaranteed to themselves be thread safe
-
-- Easier to get faster single-threaded programs (no necessity to acquire or release locks on all data structures separately)
-
-- Was easier to implement than lock-free interpreter or one with finer-grained locks!
-
-
----
-
-# Parallel Computing with Python
-
-- Next lecture we will look at various approaches for getting around the GIL
-
-- Will go back and look at how native Python, Numba, Cython, etc. enable this using threading, processes, OpenMP and MPI
+  - Will look at how we can implement thread-based/shared-memory and process-based/distributed-memory parallelism using Numba, Cython, OpenMP and MPI 
 
 
 
