@@ -257,7 +257,7 @@ template:titleslide
 
 - Numba lets us select certain functions to be just-in-time (JIT) compiled
 
-- When a Numba function is called for the first time, it is compiled into machine code using LLVM (for given argument types) and stored
+- When a JIT-decorated function is called for the first time, it is compiled into machine code using LLVM (for given argument types) 
 
 - Subsequent calls with same argument types execute the machine code
 
@@ -340,10 +340,21 @@ Numba works best when:
 # PyPy vs Numba
 
 - Numba and PyPy both provide JIT optimising compilation functionality for Python code
- - Numba works *with* the standard Python interpreter, i.e. CPython
- - PyPy is a separate standalone Python compiler implementation
 
-- Numba also does not support usage of every single Numpy feature, but code will still run as normal
+- Both easy to use:
+    - Numba uses simple decorators
+    - No code changes needed for PyPy
+
+- Compatibility:
+    - Numba works with the standard Python interpreter, i.e. CPython and NumPy
+        - not every single Numpy feature, but code will still run as normal
+    - PyPy support for NumPy, SciPy, pandas etc. still relatively immature
+
+- Performance:
+    - It depends... try it!
+    - Numba more generally useful for numerical computing
+
+- Numba can also be used to target GPUs
 
 ---
 
