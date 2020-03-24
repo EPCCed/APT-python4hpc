@@ -1,25 +1,87 @@
-
+A
 template: titleslide
 
 # Parallel Computing with Python
-
 
 ---
 
 # Parallel Computing with Python
 
-- Native Python threading inefficient for CPU-bound computing due to GIL
+- Python threads and the Global Interpreter Lock (GIL)
 
-- Better ways to use Python for parallel computing*:
+- Threading and interfaced code
+  - NumPy/SciPy
   - Cython + OpenMP
-  - Numba 
-  - multiprocessing
-  - mpi4py
+
+- Parallel computing with Numba
+
+- Python `multiprocessing`
+
+- mpi4py
 
 - Python for HPC
 
 
-##### * parts adapted with permission from http://doi.org/10.5281/zenodo.1409686
+
+*(parts adapted with permission from http://doi.org/10.5281/zenodo.1409686)*
+
+---
+
+template:titleslide
+# Python threads and the GIL
+
+---
+
+# Python threads and the GIL
+
+- CPython interpreter process can spawn threads (`import threading`, etc.)
+    - implemented as OS-managed threads (e.g. POSIX `pthreads` in Linux)
+
+- Global Interpreter Lock (GIL) is (still) a core component of CPython
+    - GIL = a **mutex lock** on threads: only one thread can execute bytecode in the interpreter at any time (like an OpenMP critical section)
+        - https://github.com/python/cpython/blob/master/Python/ceval_gil.h
+
+    - Early implementation of mutex lock acquisition and release meant CPU-bound threads (typical for numerical computing) waste vast amounts of time 'battling' to obtain the GIL (massive contention)
+
+    - Newer (Python >3.2) implementation more efficient, but still prevents actual concurrent threaded execution of bytecode
+        - Expect very bad scaling from multithreaded pure Python code
+        - Calling external compiled code is a different story...
+
+
+---
+
+# Why the GIL?
+
+- Originally created to ensure thread safety for Python garbage collection (avoiding race condition on reference counter)
+
+- Also useful historically for integration into CPython of C library code that was not itself guaranteed to be thread safe
+
+- Easier to get faster single-threaded programs (no necessity to acquire or release locks on all data structures separately)
+
+- Was easier to implement than lock-free interpreter or one with finer-grained locks!
+
+---
+
+template:titleslide
+# Threading and interfaced code
+
+---
+
+# Threading and interfaced code
+
+- GIL is released for function calls to external non-Python library code, e.g. compiled Fortran or C code
+
+    - Multiple Python threads can each call a compute-intensive external function (and one thread could execute compute-intensive bytecode)
+
+    - External code can itself run multithreaded e.g. using OpenMP, without being subject to the Python GIL
+        - Will look at how to do this using Cython + OpenMP
+
+- E.g. singlethreaded NumPy/SciPy functions may call threaded high-performance maths libraries
+
+---
+
+template:titleslide
+# Cython + OpenMP
 
 ---
 
@@ -74,9 +136,10 @@ with nogil, parallel():
 
 - `cimport` is Cython syntax (not recognised in standard Python interpreter)
 
-- can be used to import C data types, C functions and variables, and extension types
+- Used to import C data types, C functions and variables, and extension types
+    - May include where to find relevant C header files
 
-- cannot be used to import any Python objects
+- Does not imply import of any Python objects from the named `cimport`ed module
 
 ---
 
@@ -230,6 +293,12 @@ https://software.intel.com/en-us/articles/thread-parallelism-in-cython
 
 ---
 
+template:titleslide
+# Parallel computing with Numba
+
+---
+
+
 # Numba parallel
 
 - Numba can attempt to automatically parallelise a jit-decorated function, request using `@jit(parallel=True, nopython=True)`
@@ -297,37 +366,26 @@ def prange_test(A):   # 'A' would be a 1D numpy array in this example
 
 ---
 
-# Numba parallel
-
- ### Tip: don't 'unvectorise' fast NumPy code!
-
-Numba works well to speed up nonvectorised NumPy code that explicitly iterates over many items
-
-- Does not mean we should rewrite existing vectorised NumPy code to use explicit for loops (slow!) in order for Numba to have a strong effect
-  - Any speed up gain from Numba is likely to be cancelled out by removal of vectorised code
-
----
-
 # Numba parallel - summary
 
-Numba works best when:
+- Very easy to implement - just extend JIT decoration of compute-intensive functions
 
-- Compute time is primarily due to NumPy array element memory access or numerical operations more complex than a single NumPy function call.
+- Some GPU offloading implemented
 
-- Function code has data types like int8 and int16 that frequently need converted by NumPy to int64 or float64 for calculations 
+- Still limited to shared-memory concurrency
 
-- The function is called many times during normal execution
- - Compilation is slow, so if the function is not called often, savings in execution time are unlikely to compensate for compilation time
+---
 
-- Function execution time is larger than the Numba dispatcher overhead.
- - Functions that execute in much less than a microsecond are not going to see a major improvement, as the wrapper code which transitions from the Python interpreter to Numba takes longer than a pure Python function call
+template:titleslide
+# Python `multiprocessing`
+
 
 
 ---
 
-# Multiprocessing
+# Python `multiprocessing`
 
-- Multiprocessing module creates multiple instances of the Python interpreter, each running as an independent OS-level (sub)process 
+- `multiprocessing` module creates multiple instances of the Python interpreter, each running as an independent OS-level (sub)process 
  - no GIL contention!
 
 - Each Python instance has its own memory space, managed by the OS
@@ -352,16 +410,14 @@ Task distribution / work sharing can use:
  - split up work of predetermined size across available workers/cores
  - useful when workload distribution is static 
  - not adaptable to varying / unpredictable workload
-
 - Queue approach
  - Put data -  wrapped as Python objects - onto one or more work queues
  - Each worker queries queue once done with work to receive more
  - Dynamically adaptable to varying load
  - Communication overheads can dominate, especially due to pickling
 
-- See practical 2 for details
-
-- Multiprocessing module useful in some (limited) circumstances
+- Useful in some (limited) circumstances
+    - Can operate across distributed-memory nodes in principle, but tricky in practice - operates via TCP server and needs manual specification of IP addresses - not suitable for HPC deployment
 
 ---
 
