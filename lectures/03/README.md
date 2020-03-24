@@ -1,4 +1,4 @@
-A
+
 template: titleslide
 
 # Parallel Computing with Python
