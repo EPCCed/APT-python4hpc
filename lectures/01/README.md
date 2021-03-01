@@ -351,7 +351,12 @@ x = numpy.arange(size)
 
 ```
 
+---
+
+# NumPy array performance
+
 - Avoid explicit `for` loops, call named (precompiled) NumPy functions instead - likely to be fastest
+
 - For elementwise operations with NumPy arrays, if no obvious dedicated function call, use overloaded operators (`+`, `-`, `*`, `/`, `**`) and related [`ufuncs`](https://numpy.org/devdocs/reference/ufuncs.html) ("universal functions") to achieve at least partial benefit of out-of-Python-stack execution of optimised machine code compiled from C
 
 ---
