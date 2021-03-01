@@ -164,7 +164,7 @@ Module(
 
 Bytecode:
 ```Python
->>> myBytecode = compile(myAST, "errorFilename", mode='exec')
+>>> myBytecode = compile("x = a + b", "errorFilename", mode='exec')
 >>> myBytecode.co_code
  b'e\x00e\x01\x17\x00Z\x02d\x00S\x00'
 >>> import dis
@@ -196,7 +196,13 @@ Execution:
 - Execution of bytecode instructions by interpreter starts in giant `switch` statement: 
   - https://github.com/python/cpython/blob/master/Python/ceval.c
 
-- Stack-based execution: function calls and operations are pushed/popped on stacks
+- Stack-based execution:
+  - Function call: frame pushed onto call stack (incl. local variables)
+  - Function's operations executed as frames on its evaluation stack
+  - Function call returns: frame popped off call stack (return value popped onto prior frame's evaluation stack, if it exists)
+  - Each frame has block stack to track control flow (e.g. loops)
+  - References to objects stored on stack, object data stored on heap
+
 
 
 ---
@@ -329,43 +335,23 @@ Consider the dot product of a vector with itself:
 
 ```Python
 size = 1000000
-%timeit x = numpy.arange(size)
-23.8 ms ± 1.01 ms per loop (mean ± std. dev. of 7 runs, 10 loops each)
+x = numpy.arange(size)
 
 # For loop explicitly multiplying all vector element pairs
 %timeit for i in numpy.arange(size): x[i]**2
 5.78 s ± 245 ms per loop (mean ± std. dev. of 7 runs, 1 loop each)
 
-# For loop using knowledge of what generated the vector elements
-%timeit for element in numpy.arange(size): element**2
-330 ms ± 4.13 ms per loop (mean ± std. dev. of 7 runs, 1 loop each)
-
 # Vectorisation - with explicit reference to formed vector
 %timeit x**2
 27 ms ± 1.08 ms per loop (mean ± std. dev. of 7 runs, 10 loops each)
 
-# Vectorization - using knowledge of what generated the vector elements
-%timeit numpy.arange(size)**2
-5.41 ms ± 210 µs per loop (mean ± std. dev. of 7 runs, 100 loops each)
-```
-
-Explicit for loops often not the fastest way to arrive at the same answer
-
----
-# NumPy performance - continued
-
-Often fastest to find the right precompiled function:
-
-```Python
-size = 1000000
-%timeit x = numpy.arange(size)
-23.8 ms ± 1.01 ms per loop (mean ± std. dev. of 7 runs, 10 loops each)
-
 # Using the dot product function 
 %timeit numpy.dot(x,x)
 3.77 ms ± 57.1 µs per loop (mean ± std. dev. of 7 runs, 100 loops each)
-
 ```
+
+- Avoid explicit `for` loops, call named (precompiled) NumPy functions instead - likely to be fastest
+- For elementwise operations with NumPy arrays, if no obvious dedicated function call, use overloaded operators (`+`, `-`, `*`, `/`, `**`) and related [`ufuncs`](https://numpy.org/devdocs/reference/ufuncs.html) ("universal functions") to achieve at least partial benefit of out-of-Python-stack execution of optimised machine code compiled from C
 
 ---
 
@@ -458,7 +444,7 @@ template: titleslide
 
 - `cProfile`
  - standard, built in, reasonably low overhead
- - only gives information about function calls only
+ - only gives information about function calls
 
 
 - `line_profiler`
@@ -517,14 +503,14 @@ template: titleslide
 
 
 - Basic approach is to compile a shared library
- - Compiles native language source
- - Describe the interface to Python
+ - Compile function code written in e.g. C/C++/Fortran into optimised machine code stored in shared library
+ - Describe the interface to this library to Python
 - Requires
  - Appropriate compiler (e.g., gfortran, gcc, ...)
- - Usually `-fPIC` (Position Independent Code)
-- Will produce
- - A shared library (.so in Unix; DLLs in Windows) to be loaded at run time
- - Some approaches `import` module as usual
+ - Usually compile with `-fPIC` (Position Independent Code)
+- Produces
+ - Shared library (.so in Unix; DLLs in Windows) to load at run time
+ - Some approaches use usual Python module `import` command 
 - Some care may be required with compound/opaque data types
  - Need a clear picture of the number of types of any arguments
 
