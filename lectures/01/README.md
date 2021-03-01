@@ -339,19 +339,58 @@ x = numpy.arange(size)
 
 # For loop explicitly multiplying all vector element pairs
 %timeit for i in numpy.arange(size): x[i]**2
-5.78 s ± 245 ms per loop (mean ± std. dev. of 7 runs, 1 loop each)
+333 ms ± 2.64 ms per loop (mean ± std. dev. of 7 runs, 1 loop each)
 
 # Vectorisation - with explicit reference to formed vector
 %timeit x**2
-27 ms ± 1.08 ms per loop (mean ± std. dev. of 7 runs, 10 loops each)
+1.08 ms ± 38.6 µs per loop (mean ± std. dev. of 7 runs, 1000 loops each)
 
 # Using the dot product function 
 %timeit numpy.dot(x,x)
-3.77 ms ± 57.1 µs per loop (mean ± std. dev. of 7 runs, 100 loops each)
+402 µs ± 9.02 µs per loop (mean ± std. dev. of 7 runs, 1000 loops each)
+
 ```
 
 - Avoid explicit `for` loops, call named (precompiled) NumPy functions instead - likely to be fastest
 - For elementwise operations with NumPy arrays, if no obvious dedicated function call, use overloaded operators (`+`, `-`, `*`, `/`, `**`) and related [`ufuncs`](https://numpy.org/devdocs/reference/ufuncs.html) ("universal functions") to achieve at least partial benefit of out-of-Python-stack execution of optimised machine code compiled from C
+
+---
+
+# NumExpr 
+
+NumExpr can speed up evaluation of NumPy array expressions
+
+```Python
+# Using ufuncs
+%timeit 2*x + x**2
+3.44 ms ± 152 µs per loop (mean ± std. dev. of 7 runs, 100 loops each)
+
+# Using NumExpr
+import numexpr
+%timeit numexpr.evaluate("2*x + x**2")
+890 µs ± 28.1 µs per loop (mean ± std. dev. of 7 runs, 1000 loops each)
+
+# Faster than x**2 but slower than numpy.dot(x,x)
+%timeit numexpr.evaluate("x**2")
+791 µs ± 11.3 µs per loop (mean ± std. dev. of 7 runs, 1000 loops each)
+```
+
+---
+
+# NumExpr
+
+How does this work?
+
+- To evaluate `2*x + x**2` NumPy uses three temporary arrays as large as x
+  - if `x` large, intermediate results of `2*x` and `x**2` not in cache
+
+- NumExpr:
+  - tries to avoid allocating memory for intermediate results
+  - splits arrays & operands into chunks that fit easily into cache
+  - provides its own virtual machine that can make use of vectorisation to evaluate chunks
+
+- Also supports multithreading
+
 
 ---
 
