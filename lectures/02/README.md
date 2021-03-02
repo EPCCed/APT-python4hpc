@@ -255,11 +255,12 @@ template:titleslide
 - Uses just-in-time (JIT) compilation
     - Executation starts straightaway (like CPython)
     - During execution PyPy traces which operations within the bytecode evaluator most contribute to execution time (**hotspot detection**)
-    - Attempts various optimisations on "hot" operations (even before generating machine code)
+    - Attempts various optimisations on "hot" evaluator operations (even before generating machine code for bytecode)
         - Constant folding, boolean & arithmetic simplifications
         - Vectorisation
         - Loop unrolling
     - Generates machine code for remaining costly operations
+    - Optimises the interpreter operations, rather than the bytecode directly
 
 ---
 
