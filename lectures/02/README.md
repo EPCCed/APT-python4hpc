@@ -7,17 +7,34 @@ template: titleslide
 
 # ...where were we?
 
-Performance implications of standard Python interpreter:
-- Overheads from type checking & stack-based execution through VM
-- Limited optimisations during compilation into Python bytecode
+Performance implications of default Python interpreter (CPython):
+- Very limited compiler optimisations when generating bytecode
+
+
+- PVM execution overheads:
+    - ubiquitous type checking
+        - generally costly
+        - can especially kill loop performance
+    - function calls expensive 
+
+---
+
+# ...where were we?
 
 Fast numerical computing:
 - Use NumPy arrays (statically typed, fixed size)
+
 - Use efficient array access syntax to minimise creation of temporaries
+
 - Don't use explicit `for` loops that iterate over NumPy array elements
-- Use overloaded array operators (`+`, `-`, `*`, `/`, `**`) and other [`ufuncs`](https://numpy.org/devdocs/reference/ufuncs.html)
-  - If available, try dedicated functions provided by NumPy, SciPy, etc.
-- NumExpr can speed up array expressions by minimising temporaries and optimising cache usage
+
+- Use overloaded array operators (`+`, `-`, `*`, `/`, `**`) and other NumPy [`ufuncs`](https://numpy.org/devdocs/reference/ufuncs.html)
+    - Enables vectorisation
+
+- NumExpr can speed up array expressions by minimising temporaries, optimising cache usage, and vectorisation
+
+- Use dedicated functions provided by NumPy, SciPy, etc.
+
 - Interface Python with Fortran/C/C++ code compiled into machine code by importing functions from shared library (many options, looked at `ctypes`)
   
 ---
@@ -70,12 +87,12 @@ CPython and NumPy provide a C API, allows you to:
 
 - Typical usage:
  - Accelerator module: self-contained C code, for speed
- - Wrapper module: interface with other C code (libraries)
+ - Wrapper/interface module: interface with other C code (libraries)
  - Low-level system access: interface with OS, hardware, ...
   
 - NumPy extension modules:
  - Accelerator modules: e.g. inner loops moved to C
- - Wrapper modules: e.g. call Fortran/C linear algebra libraries
+ - Wrapper/interface modules: e.g. call Fortran/C linear algebra libraries
  - Low-level: e.g. vectorise operations, control memory layout of arrays
 
 ---
