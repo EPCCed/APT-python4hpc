@@ -7,23 +7,24 @@ template: titleslide
 
 # ...where were we?
 
-Looked at how Python code is executed by the default interpreter and what that tells us about performance. For fast numerical computing, want to:
-- Minimise overheads from dynamic typing & stack-based execution
-- Exploit vectorisation
+Performance implications of standard Python interpreter:
+- Overheads from type checking & stack-based execution through VM
+- Limited optimisations during compilation into Python bytecode
 
-How?
+Fast numerical computing:
 - Use NumPy arrays (statically typed, fixed size)
-  - mind efficient syntax to avoid creating temporaries
-- Call precompiled functions
-  - For elementwise operations on NumPy arrays *don't write explicit for loops*, use overloaded operators (`+`, `-`, `*`, `/`, `**`) and related [`ufuncs`](https://numpy.org/devdocs/reference/ufuncs.html) ("universal functions"), many compiled from C
-  - Interface Python with compiled Fortran/C/C++ code by importing functions from shared library (many options, looked at `ctypes`)
-
-
+- Use efficient array access syntax to minimise creation of temporaries
+- Don't use explicit `for` loops that iterate over NumPy array elements
+- Use overloaded array operators (`+`, `-`, `*`, `/`, `**`) and other [`ufuncs`](https://numpy.org/devdocs/reference/ufuncs.html)
+  - If available, try dedicated functions provided by NumPy, SciPy, etc.
+- NumExpr can speed up array expressions by minimising temporaries and optimising cache usage
+- Interface Python with Fortran/C/C++ code compiled into machine code by importing functions from shared library (many options, looked at `ctypes`)
+  
 ---
 
 # What's next?
 
-Going to cover 4 other strategies for speeding up Python performance:
+4 other strategies for speeding up Python performance:
 
 - **CPython extension modules**: extend CPython interpreter with C code
 
@@ -44,20 +45,38 @@ template:titleslide
 
 # CPython extension modules
 
-- CPython provides a C API (`#include "Python.h"`), allows you to:
-  - Write C code that directly integrates with rest of CPython
-  - Operate on built\-in objects (possibly avoid Python stack execution)
-  - Rebuild interpreter with extension module to make importable
+CPython and NumPy provide a C API, allows you to:
+  - Write C code (or C++ with restrictions) that extends CPython 
+  - Operate on CPython's underlying C data types directly
+    - including NumPy arrays
+  - Import as Python module after compiling into shared library 
+
+`my_extension.c`:
+```C
+#include "Python.h"
+#include "arrayobject.h"
+
+// Map Python objects (NumPy arrays) to C, and initialise
+
+// Declare function calls that will be accessible from Python
+
+// C code for performance-critical operations
+//   Functions return Python object(s) (e.g. NumPy), if applicable
+```
+
+---
+
+# CPython extension modules
 
 - Typical usage:
- - accelerator module: self-contained C code, for speed
- - wrapper module: interface with other C code (libraries)
- - low-level system access: interface with OS, hardware, ...
+ - Accelerator module: self-contained C code, for speed
+ - Wrapper module: interface with other C code (libraries)
+ - Low-level system access: interface with OS, hardware, ...
   
 - NumPy extension modules:
- - accelerator modules: e.g. inner loops moved to C
- - wrapper modules: e.g. call Fortran/C linear algebra libraries
- - low-level: e.g. vectorise operations, control memory layout of arrays
+ - Accelerator modules: e.g. inner loops moved to C
+ - Wrapper modules: e.g. call Fortran/C linear algebra libraries
+ - Low-level: e.g. vectorise operations, control memory layout of arrays
 
 ---
 
@@ -66,17 +85,13 @@ template:titleslide
 - Advantage: extremely flexible
 
 - Disadvantages:
-    - Requires thorough understanding of CPython and its Python/C API
-        - Significant initial development effort
-        - Difficult to maintain
-
-    - Requires rebuild of interpreter
-        - Barrier to usage and cross-platform portability
-        - Not feasible in some situations
+    - May require thorough understanding of CPython and its Python/C API
+        - Significant (initial) development effort
+        - May be difficult to maintain (C API changes)
 
 - Cython (next) partly automates creation of CPython extension modules
     - Does not require intimate knowledge of CPython
-    - Eliminates need for interpreter rebuild
+    - Expect Cython to take care of changes in CPython
 
 ---
 
