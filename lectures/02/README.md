@@ -56,12 +56,12 @@ CPython and NumPy provide a C API, allows you to:
 #include "Python.h"
 #include "arrayobject.h"
 
-// Map Python objects (NumPy arrays) to C, and initialise
+// Map Python objects (e.g. NumPy arrays) to C, and initialise
 
 // Declare function calls that will be accessible from Python
 
 // C code for performance-critical operations
-//   Functions return Python object(s) (e.g. NumPy), if applicable
+//   Functions return Python object(s) (e.g. NumPy array), if applicable
 ```
 
 ---
@@ -193,11 +193,11 @@ Fibonacci example gives the following performance results:
 Advantages:
 - Automates much of CPython extension module creation
 
-- Allows incremental development and focused optimisation of hotspots
+- Incremental development and focused optimisation of hotspots
 
 - Automatically performs runtime checks, e.g. out-of-bounds array access
 
-- Allows creation of wrapper modules to interface Python with C-based high-performance numerical libraries 
+- Can create wrapper modules to interface Python with C-based high-performance numerical libraries 
     - similar approach as example:
         - `cdef` and type-define function
         - link appropriately during build of shared library
@@ -236,9 +236,9 @@ template:titleslide
     - bytecode evaluator interprets & executes bytecode (similar to CPython's virtual machine)
 
 - Uses just-in-time (JIT) compilation
-    - Code executation starts straightaway (like CPython)
-    - During execution PyPy traces which operations within the bytecode evaluator most contribute to execution time (hotspot detection)
-    - Attempts various optimisations on traced operations (even before generating machine code)
+    - Executation starts straightaway (like CPython)
+    - During execution PyPy traces which operations within the bytecode evaluator most contribute to execution time (**hotspot detection**)
+    - Attempts various optimisations on "hot" operations (even before generating machine code)
         - Constant folding, boolean & arithmetic simplifications
         - Vectorisation
         - Loop unrolling
@@ -270,9 +270,9 @@ template:titleslide
 
 - JIT-compiler that uses LLVM toolchain
 
-- Numba lets us select certain functions to be just-in-time (JIT) compiled
+- Select functions to be just-in-time (JIT) compiled
 
-- When a JIT-decorated function is called for the first time, it is compiled into machine code using LLVM (for given argument types) 
+- When a JIT-decorated function is called for the first time, it is compiled into machine code using LLVM 
 
 - Subsequent calls with same argument types execute the machine code
 
@@ -312,16 +312,20 @@ print(a_out)
 
 # Numba performance - `nopython` mode
 
- - A jit-decorated function should run much faster if all of its operations can be compiled into machine code, as there is then no involvement of the (much slower) Python interpreter
+- JIT-decorated function faster if:
+  - All native types of objects in function code can be inferred
+  - No new Python objects created in function code
 
-- This requires that:
-  - all native types in the function can be inferred
-  - no new Python objects are created in the function
+- Then:
+  - Function code does not need Python interpreter Python/C API for type checking or Python object handling
+  - Numba can compile entire function into machine code with LLVM to execute without using Python interpreter
 
-- If both are true, the Numba-compiled function code does not try to use the interpreter's Python/C API (for type checking or Python object handling)
 
-- `nopython=True` in the `@jit` decorator means the function code will only run if this is the case
- - A warning is issued if these criteria cannot be met, and Numba will fall back to a less optimised mode
+- "`nopython=True`" in `@jit` decorator means code won't execute otherwise
+  - Should enforce for best performance (modify code if needed to pass)
+
+- Without "`nopython=True`" non-LLVM-compilable code executed by Python interpreter
+  - Numba still tries to compile some parts, e.g. `for` loops
 
 ---
 
@@ -340,36 +344,34 @@ Numba works well to speed up nonvectorised NumPy code that explicitly iterates o
 
 Numba works best when:
 
-- The function is called many times during normal execution
- - Compilation is slow, so if the function is not called often, savings in execution time are unlikely to compensate for compilation time
+- Function called many times during execution
+ - Compilation is slow, so if the function is not called often, savings in execution time unlikely to compensate for compilation time
  
-- Compute time is primarily due to NumPy array element memory access or numerical operations more complex than a single NumPy function call.
+- Compute time primarily due to NumPy array element memory access or numerical operations more complex than a single NumPy function call
 
-- Function execution time is larger than the Numba dispatcher overhead.
- - Functions that execute in much less than a microsecond are not going to see a major improvement, as the wrapper code which transitions from the Python interpreter to Numba-compiled machine code takes longer than a pure Python function call
-
-
-
+- Original function execution time larger than Numba dispatcher overhead
+  - Numba dispatch wrapper transitions from Python interpreter to Numba-compiled machine code
+  - Functions taking << 1 µs (no Numba) won't see major improvement
+ 
 ---
 
 # PyPy vs Numba
 
-- Numba and PyPy both provide JIT optimising compilation functionality for Python code
+- Both provide JIT-optimised execution of Python code
 
 - Both easy to use:
-    - Numba uses simple decorators
     - No code changes needed for PyPy
+    - Numba uses simple decorators
 
 - Compatibility:
-    - Numba works with the standard Python interpreter, i.e. CPython and NumPy
-        - not every single Numpy feature, but code will still run as normal
-    - PyPy support for NumPy, SciPy, pandas etc. still relatively immature
+    - PyPy support for NumPy, still relatively immature
+    - Numba works with CPython and NumPy
+        - not every single Numpy feature, but code will still run
 
 - Performance:
     - It depends... try it!
     - Numba more generally useful for numerical computing
-
-- Numba can also be used to target GPUs
+        - can also be used to target GPUs
 
 ---
 
