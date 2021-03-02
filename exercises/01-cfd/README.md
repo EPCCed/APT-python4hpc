@@ -6,7 +6,7 @@
         - gcc and/or gfortran
 
 - Clone this repository on Cirrus: `git clone https://github.com/EPCCed/APT-python4hpc.git`
-- `module load anaconda gcc/8.2.0`
+- `module load anaconda gcc/8.2.0 ImageMagick`
 - Follow the practical instructions in the browser, starting with [README.ipynb](https://github.com/EPCCed/APT-python4hpc/blob/master/exercises/01-cfd/README.ipynb)
-- To view `flow.png` files, use the `display` command
+- To view `flow.png` files, use the `display` command (need to load the `ImageMagick` module for this to work)
 
