@@ -29,7 +29,7 @@ Fast numerical computing:
 - Don't use explicit `for` loops that iterate over NumPy array elements
 
 - Use overloaded array operators (`+`, `-`, `*`, `/`, `**`) and other NumPy [`ufuncs`](https://numpy.org/devdocs/reference/ufuncs.html)
-    - Enables vectorisation
+    - = optimised, vectorised machine code
 
 - NumExpr can speed up array expressions by minimising temporaries, optimising cache usage, and vectorisation
 
