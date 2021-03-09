@@ -357,8 +357,9 @@ def prange_test(A):   # 'A' would be a 1D numpy array in this example
 ```
 - `prange` will automatically infer a reduction if a variable is being updated by a binary function/operator (i.e. +, -, /, *)
  - **`s`** above is automatically identified as a reduction variable
-- *We* must determine if loop can be parallelised without affecting result
- - Easier to try auto-parallelisation first, then explicit `prange` if Numba cannot determine automatically if a loop can be parallelised
+- Numba ensures thread safety but programmer must determine if loop can be parallelised without affecting result
+
+- Easier to try auto-parallelisation first, then explicit `prange` if Numba cannot determine automatically if a loop can be parallelised
 
 ---
 
