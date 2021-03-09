@@ -62,21 +62,17 @@ template:titleslide
 
 ---
 
-template:titleslide
-# Threading and interfaced code
+# Releasing the GIL
 
----
-
-# Threading and interfaced code
-
-- GIL is released for function calls to external non-Python library code, e.g. compiled Fortran or C code
+- GIL can be released during function calls to NumPy (e.g. array operations) or to non-Python library code, e.g. compiled Fortran or C code
 
     - Multiple Python threads can each call a compute-intensive external function (and one thread could execute compute-intensive bytecode)
 
-    - External code can itself run multithreaded e.g. using OpenMP, without being subject to the Python GIL
-        - Will look at how to do this using Cython + OpenMP
+- External code can itself run multithreaded e.g. using OpenMP, without being subject to the Python GIL
+    - e.g. singlethreaded NumPy/SciPy functions may call threaded high-performance maths libraries
+    - Will look at how to do this using Cython + OpenMP
 
-- E.g. singlethreaded NumPy/SciPy functions may call threaded high-performance maths libraries
+
 
 ---
 
@@ -134,10 +130,10 @@ with nogil, parallel():
 
 # `cimport`
 
-- `cimport` is Cython syntax (not recognised in standard Python interpreter)
+- `cimport` is Cython syntax (not recognised by Python interpreter)
 
-- Used to import C data types, C functions and variables, and extension types
-    - May include where to find relevant C header files
+- Address C data types, functions, variables etc. 
+    - May need to include where to find relevant C header files
 
 - Does not imply import of any Python objects from the named `cimport`ed module
 
@@ -279,7 +275,7 @@ setup(
 
 # Cython for Parallel Computing
 
-- Relatively mature, providing an opportunity to do efficient thread-based parallel programming when we can guarantee not to use Python objects in our code but instead translate it to 'lower level' Cython code
+- Relatively mature, providing an opportunity to do efficient thread-based parallel programming when we can guarantee not to use Python objects
 
 - cython.parallel provides interface to much of OpenMP API
 
