@@ -2,7 +2,6 @@ template: titleslide
 
 # Python for HPC
 
-
 ---
 
 
@@ -212,17 +211,24 @@ template:titleslide
 
 ---
 
-# Python performance
+# Python performance 
 
-Execution time on give hardware depends on:
-- number of bytecode instructions
-- computational cost of these instructions
+- Everything is an object:
+  - More metadata, more bookkeeping, unboxing & boxing overheads
 
-Some general guidelines on writing fast Python code:
-- Function calls costly in CPython stack execution model
+- Dynamic typing and flexible object modification:
+  - Need frequent type checking and lookups
+
+- Function calls costly
+  - Each call creates stack frame
+  - Inlining difficult due to flexible function modification
+  - Should improve with CPython 3.11 (2022)  
+
 - Loops and conditional blocks have high entry & exit overheads
-- Local-scope names are faster to access than global-scope
-  - Aliasing frequently accessed global names with a local-scope variable, e.g. inside a loop, can speed up your code
+
+- Local-scope variables faster to access than global-scope 
+
+- Garbage collection based on global reference counter 
 
 ---
 
@@ -742,7 +748,7 @@ C foreign function interface (CFFI) is standard library module
 
 # Next
 
-- Tomorrow's lecture will discuss Cython, PyPy and Numba
+- Next lecture will cover Cython, PyPy and Numba
 
-- Wednesday's practical will give you a chance to experiment improving Python performance using approaches discussed today and tomorrow
+- First practical will give you a chance to experiment improving Python performance using approaches from this and the next lecture
 
