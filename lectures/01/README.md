@@ -211,10 +211,10 @@ template:titleslide
 
 ---
 
-# Python performance 
+# CPython performance 
 
 - Everything is an object:
-  - More metadata, more bookkeeping, unboxing & boxing overheads
+  - Metadata (attributes), bookkeeping, unboxing & boxing overheads
 
 - Dynamic typing and flexible object modification:
   - Need frequent type checking and lookups
@@ -232,9 +232,9 @@ template:titleslide
 
 ---
 
-# Compiler optimisations
+# CPython optimisations
 
-CPython parser/AST builder and bytecode compiler perform some basic optimisations:
+CPython parser, AST builder, and bytecode compiler perform some basic optimisations:
 
 - Bytecode is saved in file (`*.pyc` or in `__pycache` directory) for reuse
 
@@ -245,35 +245,37 @@ CPython parser/AST builder and bytecode compiler perform some basic optimisation
   - Simplification of conditionals
 
 Very limited compared to Fortran/C/C++ compilers
- - Dynamic typing prevents many optimisations possible when type is known in advance
+ - Dynamic typing prevents many possible type-specific optimisations 
+ - No assumed view of whole code prevents whole-program (e.g. interprocedural) optimisations 
 
-Intentional: code should execute straight away, don't want to spend time optimising
+Also intentional: code should execute straight away, don't want to spend time optimising
 
 ---
 
-# Python performance
+# CPython performance
 
-- Fundamentally, running bytecode instructions through the Python interpreter is slower
-than executing compiled, statically-typed Fortran/C/C++ code
+- Generally, Python code executed as dynamically-compiled bytecode instructions by the CPython interpreter is slower
+than ahead-of-time-compiled Fortran/C/C++ code
 
-- For performance, should always look if desired functionality is available in standard Python library modules or external packages
-  - Functions implemented in C instead of in Python will be *much* faster
+- For better performance, check if desired functionality is available in standard CPython library modules or external packages
+  - Functions implemented as extensions to CPython written in C instead of in Python can be *much* faster
 
+- What about performance in numerical computing specifically?
 
 ---
 
 # Numerical computing
 
-In numerical computing, often care about performance of (nested) for loops reading/writing to/from arrays of floats/doubles
-- Often performing the same operation on all elements (individually, pairwise, or across >2 arrays)
+Care about performance of (nested) for loops reading/writing to/from arrays of floats/doubles
+- Often performing same operation on all elements (individually, pairwise, or across >2 arrays)
 - Explicit `for` loops in Python have very significant overhead:
   - type checking done for each element (even though all elements of an array of same type)
-  - array operations are *not* vectorised by the compiler/interpreter
+  - array operations are *not* vectorised by CPython
 
 Data structures: standard Python Library provides lists and 1d arrays (type `array.array`)
  - Lists are general containers for objects
  - `array.array` is 1D list-like container for objects of the same type
- - Limited functionality
+ - Limited functionality for numerics
  - Significant memory and performance overhead associated with these structures - ** do not use these arrays for numerical computing **
 
 
@@ -296,7 +298,7 @@ https://docs.scipy.org/doc/numpy/user/whatisnumpy.html
 
 Numpy can perform vectorised operations on all elements of arrays *with a single function call*
   - Drastically reduces overheads compared to running everything through the Python VM
-    - Unless you force Python to be slow by writing explicit `for` loops
+    - Unless you write explicit `for` loops iterating over NumPy arrays
 
 ---
 
@@ -621,7 +623,7 @@ lib.my_c_function.restype = ctypes.c_int
 # ...and the argument list
 lib.my_c_function.argtypes = [ctypes.c_double]
 
-x = float(23)
+x = 23.0
 result = lib.my_c_function(x)
 print(result, type(result))
 ```
@@ -731,18 +733,15 @@ print(a_out)
 Can use `ctypes` to interface with C++ or Fortran
  - f90wrap more natural for Fortran (or f2py for old Fortran - F77)
 
-C foreign function interface (CFFI) is standard library module
- - Can load shared library directly ("ABI")
- - Can deal with code ("API")
-
-- Application binary interface
- - Load shared library
- - Decribe prototype
-
-- Application programming interface
- - Provide prototype and source code
- - Compile from Python
- - Import resultant module
+C foreign function interface (CFFI) 
+ - Can load shared library directly (ABI approach)...
+   - Load shared library
+   - Decribe C function prototypes
+ - ... or deal with C code (API approach)
+   - Provide prototypes and link to source code
+   - Compile from Python
+   - Import resulting Python module
+ - Compatible with PyPy
 
 ---
 
@@ -750,5 +749,5 @@ C foreign function interface (CFFI) is standard library module
 
 - Next lecture will cover Cython, PyPy and Numba
 
-- First practical will give you a chance to experiment improving Python performance using approaches from this and the next lecture
+- First practical will give you a chance to experiment improving Python performance using approaches from this lecture (and the next)
 
