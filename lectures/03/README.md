@@ -332,7 +332,7 @@ template:titleslide
 
 - Allows function code to run concurrently with other threads executing Python or Numba code (either the same compiled function, or another one)
 
-- Numba handles thread safety `within` function, but when using `nogil=True`, programmer has to consider possible consistency, synchronization, race condition, etc. issues due to wider concurrency
+- Have to consider thread safety (consistency, synchronization, race condition, etc.)
 
 ---
 
