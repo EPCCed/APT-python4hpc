@@ -44,7 +44,7 @@ template:titleslide
     - Early implementation of mutex lock acquisition and release meant CPU-bound threads (typical for numerical computing) waste vast amounts of time 'battling' to obtain the GIL (massive contention)
 
     - Newer (Python >3.2) implementation more efficient, but still prevents actual concurrent threaded execution of bytecode
-        - Expect very bad scaling from multithreaded pure Python code
+        - Expect bad scaling from multithreaded pure Python code
         - Calling external compiled code is a different story...
 
 
@@ -58,20 +58,41 @@ template:titleslide
 
 - Easier to get faster single-threaded programs (no necessity to acquire or release locks on all data structures separately)
 
-- Was easier to implement than lock-free interpreter or one with finer-grained locks!
+- Easier to implement than lock-free interpreter or one with finer-grained locks!
+
+- Good enough for originally intended generic purpose (not numerically intensive computing by all threads)
 
 ---
 
 # Releasing the GIL
 
-- GIL can be released during function calls to NumPy (e.g. array operations) or to non-Python library code, e.g. compiled Fortran or C code
+Function calls that release the GIL can be executed concurrently by multiple Python threads
 
-    - Multiple Python threads can each call a compute-intensive external function (and one thread could execute compute-intensive bytecode)
+- GIL can be released for NumPy functions that:
+  - involve underlying C arrays but *not* Python object arrays (ndarrays)
+  - don't have side effects for other threads (e.g. modify global variables) 
+  - Implemented in NumPy functions with NPY_ALLOW_THREADS:
+     - NumPy > 1.9.0: array indexing (slicing, broadcast etc.)
+     - NumPy > 1.12.0: all generalized ufuncs, including most linear algebra
 
-- External code can itself run multithreaded e.g. using OpenMP, without being subject to the Python GIL
-    - e.g. singlethreaded NumPy/SciPy functions may call threaded high-performance maths libraries
-    - Will look at how to do this using Cython + OpenMP
+- Can call interfaced / imported Fortran/C/C++ code written to release the GIL as long as it is thread safe
+  - Will look at how to do this using Cython + OpenMP threads
+  - For good parallel performance, code should be able to release GIL even if not using Python threads 
 
+---
+
+# Releasing the GIL
+
+
+Even without releasing GIL, can call external non-Python code that runs multithreaded (using OpenMP, pthreads, ...) if it spawns these threads
+  - NumPy/SciPy function called by single Python thread may call threaded high-performance maths libraries
+
+example: matrix product
+```
+>>> C = numpy.dot(A,B)
+
+```
+executed by threaded BLAS library if NumPy linked to BLAS at build time
 
 
 ---
@@ -84,7 +105,7 @@ template:titleslide
 # Cython + OpenMP
 
 `cython.parallel` module brings OpenMP runtime and thread control to Cython
- - primarily through parallel for loop construct `cython.parallel.prange`(...):
+ - primarily through parallel `for` loop using `cython.parallel.prange`(...):
 
 ```Python
 # code saved in file ending in .pyx for cython code
@@ -104,7 +125,7 @@ print(sum)
 
 ---
 
-# `cython.parallel.prange`
+# OpenMP control of Cython parallel region 
 
 
 - OpenMP automatically starts thread pool and distributes the work according to the chosen schedule (`static`, `dynamic`, `guided`, `runtime`) and chunk size (optional)
@@ -132,8 +153,12 @@ with nogil, parallel():
 
 - `cimport` is Cython syntax (not recognised by Python interpreter)
 
-- Address C data types, functions, variables etc. 
-    - May need to include where to find relevant C header files
+- Imports header file describing external C code (data types, function signatures, variables, etc.) to be able to use these within Cython code 
+    - May need to include path in `setup.py` for Cython compiler to find relevant C header files, e.g. for `cimport` `numpy` may need to add:
+
+    ```
+    include_dirs=["numpy_include()]
+    ```
 
 - Does not imply import of any Python objects from the named `cimport`ed module
 
@@ -142,30 +167,22 @@ with nogil, parallel():
 
 # `nogil=True`
 
-- `nogil=True` tells Python to release the GIL whilst executing code in block
- - key to threaded performance
- - programmer now responsible for ensuring thread safety!
+- `nogil=True` tells Cython to generate C code that will release the GIL
+  - Must not manipulate Python objects in any way 
+     - Cython compiler will complain
+     - like Numba's `nopython` mode
+  - Must not *call* anything that manipulates Python objects without first re-acquiring the GIL
 
-`nogil=True` places an important restriction on the parallel code...
+- Key to threaded performance 
+  - Otherwise Cython might generate C code that hands over to PVM
 
-Suppose we want to print out intermediate values:
-```Python
-from cython.parallel import prange
-
-cdef int i
-cdef int sum = 0
-
-for i in prange(4, nogil=True):
-    sum += i
-    print("Current loop iter:", i)
-```
-
-Any issue?
+- Programmer responsible for ensuring thread safety!
+  - within code block, and of any code called
 
 ---
 
 # `nogil=True`
-
+Suppose we want to print out intermediate values:
 ```Python
 # Thread ID
 from cython.parallel import prange
@@ -173,7 +190,7 @@ from cython.parallel import prange
 cdef int i
 cdef int sum = 0
 
-for i in prange(4, nogil=True):
+for i in prange(1000, nogil=True):
     sum += i
     print("Current loop iter:", i)
 ```
@@ -182,10 +199,8 @@ for i in prange(4, nogil=True):
 
 Why?
 
-- `print` is a Python native function and unlike `i` and `sum` we can not `cdef` it as a static C-type variable for compilation into C
-- Restriction: the GIL can not be released on a block of code that manipulates any pure Python objects
-
-Solution?
+- `print` is a Python native function 
+- GIL can not be released on code that involves any Python objects
 
 ---
 
@@ -302,7 +317,7 @@ template:titleslide
  - enables Numba's `prange()` explicit loop parallelisation construct
 
 - `parallel=True` requires `nopython=True`
- - i.e. Numba must be able to do compile-time type inference and not use the Python/C API, including not creating any new Python objects
+ - i.e. Numba must be able to do compile-time type inference and not use CPython's C API, including not creating any new Python objects
 
 - Threading layer is implemented using one choice of:
  - OpenMP
@@ -315,9 +330,9 @@ template:titleslide
 
 - `@jit(nogil=True)` releases the GIL upon entry to a jit-decorated function
 
-- Key to getting best performance from function code
- - Allows function code to run multithread concurrent with itself and with threads executing other Python code (Numba-decorated or not)
- - Typically Numba is doing the parallelisation so we are less responsible for ensuring thread safety and instead relying on it to protect operations
+- Allows function code to run concurrently with other threads executing Python or Numba code (either the same compiled function, or another one)
+
+- Numba handles thread safety `within` function, but when using `nogil=True`, programmer has to consider possible consistency, synchronization, race condition, etc. issues due to wider concurrency
 
 ---
 
@@ -383,7 +398,7 @@ template:titleslide
 # Python `multiprocessing`
 
 - `multiprocessing` module creates multiple instances of the Python interpreter, each running as an independent OS-level (sub)process 
- - no GIL contention!
+ - no GIL contention between instances
 
 - Each Python instance has its own memory space, managed by the OS
  - possible to declare a shared memory between processes, but this brings up synchronisation issues
@@ -449,10 +464,10 @@ $ mpirun -n 192 python myMPI-ParallelScript.py
 # mpi4py performance
 
 - Sending and receiving of generic Python objects suffers from significant overheads due to  pickling & unpickling (like multiprocessing module)
- - use lower case functions `send`, `recv`, `gather`
+ - uses lower case functions `send`, `recv`, `gather`
 
 - Contiguous memory buffers such as Numpy arrays can be sent without pickling and with very little overhead, close to efficiency of equivalent calls from C/Fortran
- - use upper case function `Send`, `Recv`, `Gather`
+ - uses upper case functions `Send`, `Recv`, `Gather`
 
 ---
 
