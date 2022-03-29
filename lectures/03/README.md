@@ -266,8 +266,7 @@ Can define a "critical section" in Cython by using `with gil` inside a `nogil`-p
 To compile parallel Cython code into C need to add `-fopenmp` flags to `setup.py`:
 
 ```Python
-from distutils.core import setup
-from distutils.extension import Extension
+from setuptools import Extension, setup
 from Cython.Build import cythonize
 
 ext_modules = [
