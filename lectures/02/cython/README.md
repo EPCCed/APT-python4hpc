@@ -5,9 +5,11 @@ This example shows how to use Cython and what performance gains can be had
 
 `fib.py` - the original pure Python code
 
-`fib_python.pyx` - the same original pure Python code (no static C-type declarations), saved as `.pyx` ready to cythonize into C and then compile into a shared library
+`fib_python.pyx` - the same original pure Python code (no C type declarations), saved as `.pyx` ready to cythonize into C and then compile into a shared library
 
-`fib_cython.pyx` - Cython version of the code (Python plus static C-type declarations), saved as `.pyx` ready to cythonize into C and then compile into a shared library
+`fib_cython.pyx` - Cython version of the code (Python plus C type declarations of variables), saved as `.pyx` ready to cythonize into C and then compile into a shared library
+
+`fib_cython_typed_func.pyx` - Cython version of the code (Python plus C type declarations of variables and the function return type), saved as `.pyx` ready to cythonize into C and then compile into a shared library
 
 To create the shared libraries, run the following commands with a `python` install that includes cython (e.g. Anaconda Python):
 
@@ -17,8 +19,14 @@ To create the shared libraries, run the following commands with a `python` insta
 
 This will create the corresponding `.so` library files
 
-It is worth inspecting the corresponding `.c` source code files generated to see what the Cython compiler has
-created - you can see these CPython extension modules are quite involved even for relatively simple code.
+It is worth inspecting the corresponding `.c` source code files
+generated to see what the Cython compiler has created - you can see
+these CPython extension modules are quite involved even for relatively
+simple code.
+
+It is also worth inspect the corresponding `.html` files to how Cython
+has annotated the source code showing what C code it has produced and
+the strength of interaction with the C API highlighted in yellow.
 
 To run and obtain timings in ipython:
 
