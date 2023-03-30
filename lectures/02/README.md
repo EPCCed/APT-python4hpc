@@ -131,6 +131,7 @@ template:titleslide
 
 - Enrich performance-critical Python code with additional syntax
  - Cython = Python + static declarations of C types + calls to C functions
+ - Uses the normal C syntax for C types, including pointers
 
 - Cython compiler (`cython`) converts Cython code to C code that calls CPython's C API
     - Effectively creates a CPython extension module for you
@@ -218,6 +219,59 @@ Fibonacci example gives the following performance results:
   - Highlights interactions between C code and CPython's C API
       - Helps determine where further optimisation possible 
 
+---
+
+
+# Cython - cdefining functions 
+
+- Python function calls expensive
+  - Cythonized functions potentially even worse: PyObject <--> C type conversions on function entry/exit
+
+- Can cdefine function:
+
+```Cython
+cdef double fib(int n)
+    cdef int i
+    cdef double a = 0.0
+    cdef double b = 1.0
+    for i in range(n):
+        a, b = a + b, a
+    return a
+```
+
+- `cdef` functions callable from Cython/C code with native C call overhead
+  - not callable from non-Cythonized code
+  - `cpdef` generates both native C and Python-wrapped instances
+      - Python-wrapped version remains mutable 
+  - PyObject <--> C type conversion overheads may occur within function
+
+---
+
+# Cython & (NumPy) arrays
+
+- Can C-declare using standard C array syntax:
+  - Stack: `cdef double vals[1000]`
+  - Heap: `cdef double *vals = <double *> malloc(1000 * sizeof(double))`
+
+- More convenient to work with NumPy ndarrays (= heap allocated),
+  do this in Cython using **typed memoryviews**
+    - Mimics NumPy array view & slicing syntax
+    - Generates C code that directly accesses underlying C arrays
+    - Can pass memoryviews to/from C functions
+    - No data is copied from the NumPy array to the memoryview 
+
+```Cython
+import numpy as np
+
+result = np.zeros((xmax, ymax), dtype=np.intc)
+cdef int[:,:] result_view = result
+
+cdef int i, j
+for i in range(xmax):
+  for j in range(ymax):
+    result_view[x,y] = j+i
+
+```
 
 ---
 
@@ -226,34 +280,36 @@ Fibonacci example gives the following performance results:
 
 
 Advantages:
-- Automates much of CPython extension module creation
+- Automates CPython extension module creation
 
 - Incremental development and focused optimisation of hotspots
 
-- Automatically perform at compile what would be runtime checks in pure Python, e.g. out-of-bounds array access
+- Interface Python with existing code, e.g. C-based high-performance numerical libraries
+  - `cimport`: access C variables & functions from CPython, libc(++), NumPy, POSIX, e.g.:
+```Cython
+from libc.math cimport sin
+```
+  - Other C libraries:
+```Cython
+cdef extern from "linear_algebra_library.h":
+      double linalg_function(double x)
+```
 
-- Can create wrapper modules to interface Python with existing code, e.g. C-based high-performance numerical libraries
-  - need to `cimport` Cython syntax equivalent of a header file describing external C code to be able to call it within Cython code
+- Can also be used to call Python code from C code
 
-- Can also be used to call into Python code from C
-  
 ---
 
 # Cython
 
-Limitations / things to consider:
+Performance & other considerations:
 
 - Little/no speedup for conventional (non-C-translatable) Python code and Python native data structures (lists, tuples, dicts)
 
-- For Cython code to be fast it should avoid frequent calls to Python (wrapper) functions or access of pure-Python data structures, as this requires bytecode execution through the PVM
-  - Cythonize can annotate Cython code to help target optimisation
+- Avoid frequent calls to Python functions and access of Python objects in performance-critical regions
+  - Automatic annotation helps target incremental elimination 
 
-- Explicit type annotation cumbersome
-
-- Often requires restructuring code
-
-- Code build becomes more complicated, more difficult to maintain
-
+- Explicit type annotation cumbersome and complicates build-run cycle
+  - use Cython for performance-critical kernels
 
 ---
 
@@ -275,7 +331,7 @@ template:titleslide
         - Constant folding, boolean & arithmetic simplifications
         - Vectorisation
         - Loop unrolling
-    - Generates machine code for remaining costly evaluator operations
+    - Generates machine code 
 
 - Garbage collection does not rely on global reference counter
 
@@ -365,14 +421,27 @@ print(a_out)
 
 ---
 
-# Numba performance
+# Numba performance - ufuncs
 
- ### Tip: don't 'unvectorise' fast NumPy code!
+- Numba works well to speed up nonvectorised Python code that explicitly iterates over a NumPy array (for loop)
 
-Numba works well to speed up nonvectorised NumPy code that explicitly iterates over many items
+- Numba also understands NumPy ufuncs and can generate equivalent native code for many 
 
-- Does not mean we should rewrite existing vectorised NumPy code to use explicit for loops (slow!) in order for Numba to have a strong effect
-  - Any speed up gain from Numba is likely to be cancelled out by removal of vectorised code
+- Can generate NumPy ufuncs using `@vectorize`:
+
+```Python
+from numba import vectorize, float64
+
+@vectorize([float64(float64, float64)])
+def f(x, y):
+    return x + y
+```
+
+```Python
+>>> a = np.linspace(0, 1, 6)
+>>> f(a, a)
+array([ 0. ,  0.4,  0.8,  1.2,  1.6,  2. ])
+```
 
 ---
 
@@ -381,12 +450,12 @@ Numba works well to speed up nonvectorised NumPy code that explicitly iterates o
 Numba works best when:
 
 - Function called many times during execution
- - Compilation is slow, so if the function is not called often, savings in execution time unlikely to compensate for compilation time
+ - Compilation is slow so overall time saving unlikely if not called often
  
 - Compute time primarily due to NumPy array element memory access or numerical operations more complex than a single NumPy function call
 
 - Original function execution time larger than Numba dispatcher overhead
-  - Numba dispatch wrapper transitions from Python interpreter to Numba-compiled machine code
+  - Dispatcher transitions between Python interpreter and Numba-compiled machine code 
   - Functions taking << 1 µs (no Numba) won't see major improvement
  
 ---
