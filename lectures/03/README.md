@@ -99,9 +99,9 @@ GIL = Global Interpreter Lock
         - NumPy > 1.12.0: all generalized ufuncs, most linear algebra
 
 - Code that releases the GIL can, if thread safe, be executed: 
-    - concurrently with itself (multiple other threads)
-    - concurrently with other GIL-releasing code (multiple other threads)
-    - concurrently with Python bytecode (one other thread only)
+    - concurrently with itself (multiple Python threads)
+    - concurrently with other GIL-releasing code (multiple Python threads)
+    - concurrently with Python bytecode (one other Python thread only)
 
 ---
 
