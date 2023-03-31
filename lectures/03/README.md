@@ -9,7 +9,8 @@ template: titleslide
 
 - Python threads and the Global Interpreter Lock (GIL)
 
-- Threading and interfaced code
+- Threading, interfaced code and CPython extension modules
+  - Interfacing multithreaded code
   - NumPy/SciPy
   - Cython + OpenMP
 
