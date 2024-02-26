@@ -190,7 +190,7 @@ Execution:
 # The Python virtual machine / interpreter
 
 - CPython implements a Python virtual machine in C
-  - Python built-in object types (ints, doubles, Lists) all implemented in C
+  - Python built-in object types (ints, floats, Lists) all implemented in C
 
 - Execution of bytecode instructions by interpreter starts in giant `switch` statement: 
   - https://github.com/python/cpython/blob/master/Python/ceval.c
@@ -222,7 +222,6 @@ template:titleslide
 - Function calls costly
   - Each call creates stack frame
   - Inlining difficult due to flexible function modification
-  - Should improve with CPython 3.11 (2022)  
 
 - Loops and conditional blocks have high entry & exit overheads
 
