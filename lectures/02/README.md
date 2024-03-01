@@ -31,13 +31,14 @@ General performance of default Python interpreter (CPython):
 Fast numerical computing:
 - Use NumPy arrays (statically typed, fixed size)
 
-- Use efficient array access syntax to minimise creation of temporaries
-
 - Don't use explicit `for` loops that iterate over NumPy array elements
+
+- Use efficient array access syntax to avoid creation of intermediate temporaries
 
 - Use overloaded array operators (`+`, `-`, `*`, `/`, `**`) and other NumPy [`ufuncs`](https://numpy.org/devdocs/reference/ufuncs.html)
     - = optimised, vectorised machine code
-    - avoids type checking
+    - avoids VM overheads like type checking
+    - also applies to slices of Numpy arrays! 
 
 - NumExpr can speed up array expressions by minimising temporaries, optimising cache usage, and vectorisation
 
