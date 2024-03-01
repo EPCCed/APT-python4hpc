@@ -77,7 +77,7 @@ CPython and NumPy provide a C API, allows you to:
   - Write C code (or C++ with restrictions) that extends CPython 
   - Operate on CPython's underlying C data types directly
     - e.g. C arrays that underlie NumPy arrays
-  - Import as Python module after compiling into shared library 
+  - Compile this code into a Python module for import
 
 `my_extension.c`:
 ```C
